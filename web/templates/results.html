@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Resultados - ArkGrid Gem Optimizer</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Resultados</h1>
+
+    {% if results.errors %}
+      <div class="errors">
+        <h3>Advertencias</h3>
+        <ul>
+          {% for e in results.errors %}
+            <li>{{ e }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+
+    <h3>Resumen</h3>
+    <p>Total OP: {{ results.total_op }} OP</p>
+    <p>Total Value: {{ results.total_value }}</p>
+
+    {% if results.ancient %}
+      <h2>Ancient Cores</h2>
+      {% for core in results.ancient %}
+        <div class="core">
+          <h4>Ancient #{{ core.index }} — {{ core.op }} OP (WP {{ core.wp }}/{{ core.max_wp }})</h4>
+          <ul>
+            {% for g in core.gems %}
+              <li>ID {{ g.id }} — {{ g.wp }}/{{ g.op }} (AD:{{ g.add_damage }} AP:{{ g.atk_power }} BD:{{ g.boss_dmg }})</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if results.reliquia %}
+      <h2>Reliquia Cores</h2>
+      {% for core in results.reliquia %}
+        <div class="core">
+          <h4>Reliquia #{{ core.index }} — {{ core.op }} OP (WP {{ core.wp }}/{{ core.max_wp }})</h4>
+          <ul>
+            {% for g in core.gems %}
+              <li>ID {{ g.id }} — {{ g.wp }}/{{ g.op }} (AD:{{ g.add_damage }} AP:{{ g.atk_power }} BD:{{ g.boss_dmg }})</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    {% if results.legendary %}
+      <h2>Legendary Cores</h2>
+      {% for core in results.legendary %}
+        <div class="core">
+          <h4>Legendary #{{ core.index }} — {{ core.op }} OP (WP {{ core.wp }}/{{ core.max_wp }})</h4>
+          <ul>
+            {% for g in core.gems %}
+              <li>ID {{ g.id }} — {{ g.wp }}/{{ g.op }} (AD:{{ g.add_damage }} AP:{{ g.atk_power }} BD:{{ g.boss_dmg }})</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <p><a href="/">← Volver</a></p>
+  </div>
+</body>
+</html>

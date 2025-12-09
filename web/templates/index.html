@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ArkGrid - Gem Optimizer (Web)</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="top-controls">
+    <button type="button" class="theme-toggle" id="theme-toggle">Modo oscuro</button>
+  </div>
+  <div class="container">
+    <h1>ArkGrid - Gem Optimizer (Web)</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes">
+          {% for category, msg in messages %}
+            <div class="flash {{ category }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    <form action="/optimize" method="post" id="opt-form" onsubmit="return buildGemsField()">
+      <label>Gemas (añade una por fila usando los desplegables)</label>
+
+      <div id="gems-rows">
+        <!-- gem rows will be injected here -->
+      </div>
+
+      <p>
+        <button type="button" id="add-gem">Agregar gema</button>
+        <button type="button" id="clear-gems">Limpiar</button>
+        <button type="button" id="save-gems">Guardar (.txt)</button>
+        <label for="import-file" style="margin-left:8px;">Importar .txt:</label>
+        <input type="file" id="import-file" accept=".txt">
+      </p>
+
+
+    <script>
+      // Theme toggle
+      const themeToggle = document.getElementById('theme-toggle');
+      function applyTheme(dark){
+        if(dark) document.body.classList.add('dark'); else document.body.classList.remove('dark');
+        themeToggle.textContent = dark ? 'Modo claro' : 'Modo oscuro';
+        localStorage.setItem('ark_theme_dark', dark ? '1' : '0');
+      }
+
+      // Initialize theme from localStorage
+      (function(){
+        const saved = localStorage.getItem('ark_theme_dark');
+        applyTheme(saved === '1');
+      })();
+
+      themeToggle.addEventListener('click', ()=>{
+        const dark = !document.body.classList.contains('dark');
+        applyTheme(dark);
+      });
+    </script>
+      <!-- hidden textarea that will be populated before submit -->
+      <textarea name="gems" id="gems" style="display:none">{{ default_gems }}</textarea>
+
+      <div class="row">
+        <label>ANCIENT cores:</label>
+        <input type="number" name="num_ancient" value="0" min="0">
+      </div>
+
+      <div class="row">
+        <label>RELIQUIA cores:</label>
+        <input type="number" name="num_reliquia" value="0" min="0">
+      </div>
+
+      <div class="row">
+        <label>LEGENDARY cores:</label>
+        <input type="number" name="num_legendary" value="0" min="0">
+      </div>
+
+      <button type="submit">Optimizar</button>
+    </form>
+
+    <script>
+      // Ranges: WP 3..10, OP 0..5, AddDamage 0..5, AtkPower 0..5, BossDmg 0..5
+      const wpMin = 3, wpMax = 10;
+      const opMin = 0, opMax = 5;
+      const addMin = 0, addMax = 5;
+      const atkMin = 0, atkMax = 5;
+      const bossMin = 0, bossMax = 5;
+
+      function makeSelect(name, min, max, selected) {
+        const sel = document.createElement('select');
+        sel.name = name;
+        for (let i = min; i <= max; i++) {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.text = i;
+          if (selected !== undefined && Number(selected) === i) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        return sel;
+      }
+
+      function makeGemRow(values) {
+        const div = document.createElement('div');
+        div.className = 'gem-row';
+
+        // WP
+        const wpLabel = document.createElement('label'); wpLabel.textContent = 'WP:';
+        const wpSel = makeSelect('wp', wpMin, wpMax, values?.wp);
+        div.appendChild(wpLabel); div.appendChild(wpSel);
+
+        // OP
+        const opLabel = document.createElement('label'); opLabel.textContent = ' OP:';
+        const opSel = makeSelect('op', opMin, opMax, values?.op);
+        div.appendChild(opLabel); div.appendChild(opSel);
+
+        // AddDamage
+        const addLabel = document.createElement('label'); addLabel.textContent = ' AddDmg:';
+        const addSel = makeSelect('add', addMin, addMax, values?.add_damage);
+        div.appendChild(addLabel); div.appendChild(addSel);
+
+        // AtkPower
+        const atkLabel = document.createElement('label'); atkLabel.textContent = ' AtkPow:';
+        const atkSel = makeSelect('atk', atkMin, atkMax, values?.atk_power);
+        div.appendChild(atkLabel); div.appendChild(atkSel);
+
+        // BossDmg
+        const bossLabel = document.createElement('label'); bossLabel.textContent = ' BossDmg:';
+        const bossSel = makeSelect('boss', bossMin, bossMax, values?.boss_dmg);
+        div.appendChild(bossLabel); div.appendChild(bossSel);
+
+        const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Eliminar';
+        remove.addEventListener('click', () => {
+          // Remove this gem row from the DOM
+          div.remove();
+        });
+        div.appendChild(remove);
+
+        return div;
+      }
+
+      function addGem(values) {
+        document.getElementById('gems-rows').appendChild(makeGemRow(values));
+      }
+
+      document.getElementById('add-gem').addEventListener('click', () => addGem());
+      document.getElementById('clear-gems').addEventListener('click', () => {
+        document.getElementById('gems-rows').innerHTML = '';
+      });
+
+      // If default_gems present, parse and populate rows
+      (function populateFromDefault(){
+        const defaultText = `{{ default_gems|e }}`.trim();
+        if (!defaultText) { addGem(); return; }
+        const lines = defaultText.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+        for (const line of lines) {
+          const parts = line.split(/\s+/);
+          if (parts.length >= 5) {
+            const [wp, op, add, atk, boss] = parts;
+            addGem({wp, op, add_damage: add, atk_power: atk, boss_dmg: boss});
+          } else {
+            addGem();
+          }
+        }
+      })();
+
+      // Build the hidden textarea value before submit
+      function buildGemsField(){
+        const rows = document.querySelectorAll('#gems-rows .gem-row');
+        const lines = [];
+        for (const r of rows) {
+          const wp = r.querySelector('select[name=wp]').value;
+          const op = r.querySelector('select[name=op]').value;
+          const add = r.querySelector('select[name=add]').value;
+          const atk = r.querySelector('select[name=atk]').value;
+          const boss = r.querySelector('select[name=boss]').value;
+          lines.push(`${wp} ${op} ${add} ${atk} ${boss}`);
+        }
+        document.getElementById('gems').value = lines.join('\n');
+        return true; // allow submit
+      }
+
+      // Download gems as a .txt file
+      function saveGemsAsFile(){
+        const rows = document.querySelectorAll('#gems-rows .gem-row');
+        const lines = [];
+        for (const r of rows) {
+          const wp = r.querySelector('select[name=wp]').value;
+          const op = r.querySelector('select[name=op]').value;
+          const add = r.querySelector('select[name=add]').value;
+          const atk = r.querySelector('select[name=atk]').value;
+          const boss = r.querySelector('select[name=boss]').value;
+          lines.push(`${wp} ${op} ${add} ${atk} ${boss}`);
+        }
+        const blob = new Blob([lines.join('\n')], {type: 'text/plain;charset=utf-8'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'gems.txt';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      document.getElementById('save-gems').addEventListener('click', saveGemsAsFile);
+
+      // Import gems from a .txt file (same format: one line per gem, fields separated by spaces)
+      function importGemsFromText(text){
+        const lines = text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+        document.getElementById('gems-rows').innerHTML = '';
+        for (const line of lines){
+          const parts = line.split(/\s+/);
+          if (parts.length >= 5){
+            const [wp, op, add, atk, boss] = parts;
+            addGem({wp, op, add_damage: add, atk_power: atk, boss_dmg: boss});
+          } else {
+            // if malformed line, add an empty row for manual fixing
+            addGem();
+          }
+        }
+      }
+
+      document.getElementById('import-file').addEventListener('change', function(ev){
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        const reader = new FileReader();
+        reader.onload = function(e){
+          importGemsFromText(String(e.target.result || ''));
+        };
+        reader.readAsText(f);
+      });
+    </script>
+
+    <p class="note">Ingrese las gemas y selección el número de cores. No se permiten gemas repetidas entre cores.</p>
+  </div>
+</body>
+</html>
